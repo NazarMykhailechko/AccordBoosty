@@ -7,6 +7,15 @@
 #    http://shiny.rstudio.com/
 #
 
+options(mysql = list(
+  "host" = "127.0.0.1",
+  "port" = 3306,
+  "user" = "root",
+  "password" = "WIN72007@NAZAr"
+))
+databaseName <- "crmsystem"
+#table <- "clients"
+
 css <- HTML("@import url('https://fonts.googleapis.com/css?family=Source+Code+Pro:200');
             
             body  {
@@ -132,9 +141,15 @@ tags$div(tags$style('.btn.btn-default.shiny-download-link.shiny-bound-output {fo
 get_credencials <- function() {
 
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    data <- RODBC::sqlQuery(con, "SELECT * FROM mycredentials")
-    on.exit(RODBC::odbcClose(con))
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #data <- RODBC::sqlQuery(con, "SELECT * FROM mycredentials")
+    #on.exit(RODBC::odbcClose(con))
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    data <- dbGetQuery(con,   "SELECT * FROM mycredentials")
+    on.exit(dbDisconnect(con))
 
    return(data)
 }
@@ -166,11 +181,11 @@ library(dplyr)
 library(tidyr)
 library(openxlsx)
 library(data.table)
-library(RODBC)
-#library(RODBC, lib.loc = "/path-to-r-site-libraries")
+#library(RODBC)
 #library(yum)
 #library(odbc)
-#library(DBI)
+library(RMySQL)
+library(DBI)
 library(DT)
 library(reactable)
 library(htmltools)
@@ -187,6 +202,7 @@ library(lubridate)
 #library(reactable.extras)
 #library(V8)
 #library(fontawesome)
+
 
 
 # Define UI for application that draws a histogram
@@ -645,7 +661,15 @@ theme = shinytheme("superhero"),
 
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
+server <- function(input, output, session) {
+  
+  session$onSessionEnded(function(){
+    print("KILL CON!!!!!!!!!!!!!!!!!!!!!!!")
+    cons<-dbListConnections(MySQL()) 
+    for(con in cons) {
+      dbDisconnect(con)
+      }
+  })
   
   shinyjs::useShinyjs()
   #session$allowReconnect(TRUE)
@@ -814,44 +838,90 @@ server <- function(input, output) {
     #print(auth$user)
 
     
-     ssql <- "SELECT top 1000 pr
-       ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
- 	  	  ,[dbo].[status_icons].[icon]
- 	  ,[dbo].[database].[status]
- 	  ,[last_client_result]
-     ,[employee_num] as emp
- 	  ,[forex_per_year_usd]
-       ,[loan_value_uah]
-       ,[passive_value_uah]
- 	  ,[revenue_uah]
- 	  ,[tender_num]
-       ,[tender_sum]
-       ,[sek]
-       ,[kved]
-       ,[kved_name]
-       ,[person_details]
-       ,[phone]
-       ,[full_address]
-       ,[kobl]
-       ,[login]
-     --,FORMAT ([last_date_contact], 'd', 'hy-AM') as [last_date_contact]
- 	  ,[client_history]
- 	  --,[comments]
-
-   FROM [dbo].[database] INNER JOIN
-                   [dbo].[status_icons] ON [database].status = [status_icons].status
-   where login = '"
+ #     ssql <- "SELECT top 1000 pr
+ #       ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
+ # 	  	  ,[dbo].[status_icons].[icon]
+ # 	  ,[dbo].[database].[status]
+ # 	  ,[last_client_result]
+ #     ,[employee_num] as emp
+ # 	  ,[forex_per_year_usd]
+ #       ,[loan_value_uah]
+ #       ,[passive_value_uah]
+ # 	  ,[revenue_uah]
+ # 	  ,[tender_num]
+ #       ,[tender_sum]
+ #       ,[sek]
+ #       ,[kved]
+ #       ,[kved_name]
+ #       ,[person_details]
+ #       ,[phone]
+ #       ,[full_address]
+ #       ,[kobl]
+ #       ,[login]
+ #     --,FORMAT ([last_date_contact], 'd', 'hy-AM') as [last_date_contact]
+ # 	  ,[client_history]
+ # 	  --,[comments]
+ # 
+ #   FROM [dbo].[database] INNER JOIN
+ #                   [dbo].[status_icons] ON [database].status = [status_icons].status
+ #   where login = '"
+     
      #where login = 'olanhaieva'"
+     
+     ssql <-    "SELECT pr,
+
+CASE
+WHEN client_name_short is NULL or client_name_short = '' THEN client_name
+ELSE client_name_short
+END AS cl
+ 	  	  ,status_icons.icon
+ 	  ,`database`.status
+ 	  ,last_client_result
+     ,employee_num as emp
+ 	  ,forex_per_year_usd
+       ,loan_value_uah
+       ,passive_value_uah
+ 	  ,revenue_uah
+ 	  ,tender_num
+       ,tender_sum
+       ,sek
+       ,kved
+       ,kved_name
+       ,person_details
+       ,phone
+       ,full_address
+       ,kobl
+       ,login
+ 	  ,client_history
+
+   FROM `database`  INNER JOIN
+                   status_icons ON `database`.status = status_icons.status 
+where login = '"
+
+     
 
 
      #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-     con <- RODBC::odbcDriverConnect('driver={SQL Server};server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-     data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "'"))
+     
+     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+     
+     #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "'"))
+     
+     con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+     
+     
+     
+     data <- dbGetQuery(con,  paste0(ssql,input$managers, "'order by pr LIMIT 1000"))
+     
 
-     mutate(data, pr = sprintf("%008d", pr)) -> data
+     #mutate(data, pr = sprintf("%008d", pr)) -> data
 
+     
      #data <- sqlQuery(con, paste0(ssql,isTruthy(auth$user), "'"))
-     on.exit(RODBC::odbcClose(con))
+     #on.exit(RODBC::odbcClose(con))
+     on.exit(dbDisconnect(con))
 
 
      # on click function
@@ -1026,27 +1096,47 @@ server <- function(input, output) {
     
 
     
-    ssql <- "SELECT [TIN]
-      ,[FIRM_NAME]
-      ,[S_CH]
-      ,[FIRM_RUK]
-      ,[FIRM_BUH]
-      ,[FIRM_ADR]
-      ,[FIRM_TELORG]
-      ,[FIRM_KVED]
-      ,[FIRM_KVEDNM]
-      --,[FIRM_OPFCD]
+    # ssql <- "SELECT [TIN]
+    #   ,[FIRM_NAME]
+    #   ,[S_CH]
+    #   ,[FIRM_RUK]
+    #   ,[FIRM_BUH]
+    #   ,[FIRM_ADR]
+    #   ,[FIRM_TELORG]
+    #   ,[FIRM_KVED]
+    #   ,[FIRM_KVEDNM]
+    #   --,[FIRM_OPFCD]
+    # 
+    #  FROM [dbo].[finzvitdata]
+    # where TIN = '"
+    
+    ssql <-   "SELECT TIN
+      ,FIRM_NAME
+      ,S_CH
+      ,FIRM_RUK
+      ,FIRM_BUH
+      ,FIRM_ADR
+      ,FIRM_TELORG
+      ,FIRM_KVED
+      ,FIRM_KVEDNM
 
-     FROM [dbo].[finzvitdata]
+     FROM finzvitdata
     where TIN = '"
     
-    
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    dataf <- RODBC::sqlQuery(con, paste0(ssql,input$okpo,"'"))
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #dataf <- RODBC::sqlQuery(con, paste0(ssql,input$okpo,"'"))
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    dataf <- dbGetQuery(con,  paste0(ssql,input$okpo,"'"))
+    on.exit(dbDisconnect(con))
 
-    mutate(dataf, TIN = sprintf("%008d", TIN)) -> dataf
-    on.exit(RODBC::odbcClose(con))
+    #mutate(dataf, TIN = sprintf("%008d", TIN)) -> dataf
+    #on.exit(RODBC::odbcClose(con))
+    
     
     if (nrow(dataf) == 0) {
       output$company4 <- renderText("Дані відсутні!")
@@ -2111,39 +2201,76 @@ server <- function(input, output) {
     # print(state)
 
     
-    ssql <- "SELECT [pr]
-      ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
-	  ,[status]
-      ,[employee_num] as emp
-      ,[full_address]
-      ,[kobl]
-      ,[kved]
-      ,[kved_name]
-	  ,[forex_per_year_usd] as fpyu
-      ,[loan_value_uah] as loan_v_u
-      ,[passive_value_uah] as pass_v_u
-	  ,[revenue_uah]
-	  ,[tender_num] as ten_n
-      ,[tender_sum] as ten_s
-      ,[sek]
-      ,[person_details]
-      ,[phone]
-	  ,[last_client_result]
-      ,CAST( [last_date_contact] AS Date ) as [last_date_contact]
-	  ,[client_history]
-	  ,[comments]
-	  --,[login]
-  FROM [dbo].[database]
-  where login = '"
+#     ssql <- "SELECT [pr]
+#       ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
+# 	  ,[status]
+#       ,[employee_num] as emp
+#       ,[full_address]
+#       ,[kobl]
+#       ,[kved]
+#       ,[kved_name]
+# 	  ,[forex_per_year_usd] as fpyu
+#       ,[loan_value_uah] as loan_v_u
+#       ,[passive_value_uah] as pass_v_u
+# 	  ,[revenue_uah]
+# 	  ,[tender_num] as ten_n
+#       ,[tender_sum] as ten_s
+#       ,[sek]
+#       ,[person_details]
+#       ,[phone]
+# 	  ,[last_client_result]
+#       ,CAST( [last_date_contact] AS Date ) as [last_date_contact]
+# 	  ,[client_history]
+# 	  ,[comments]
+# 	  --,[login]
+#   FROM [dbo].[database]
+#   where login = '"
   #where login = 'olanhaieva' and pr="
+    
+    ssql <-    "SELECT pr,
+
+CASE
+WHEN client_name_short is NULL or client_name_short = '' THEN client_name
+ELSE client_name_short
+END AS cl
+	  ,status
+      ,employee_num as emp
+      ,full_address
+      ,kobl
+      ,kved
+      ,kved_name
+	  ,forex_per_year_usd as fpyu
+      ,loan_value_uah as loan_v_u
+      ,passive_value_uah as pass_v_u
+	  ,revenue_uah
+	  ,tender_num as ten_n
+      ,tender_sum as ten_s
+      ,sek
+      ,person_details
+      ,phone
+	  ,last_client_result
+      ,CAST(last_date_contact AS Date ) as last_date_contact
+	  ,client_history
+	  ,comments
+  FROM `database`
+  where login = '"
     
     
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
     #data <- sqlQuery(con,paste0(ssql,input$edit))
-    data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "' and pr=", input$edit))
+    #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "' and pr=", input$edit))
     
-    on.exit(RODBC::odbcClose(con))
+    #on.exit(RODBC::odbcClose(con))
+    
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' and pr=", input$edit))
+    on.exit(dbDisconnect(con))
+    
     hold <- data
     
     hold$client_history <- gsub(pattern = "<br/>", replacement = "\n", x = hold$client_history)
@@ -2245,37 +2372,75 @@ server <- function(input, output) {
     #tempdata <- data$df
     page = getReactableState("new_clients")$page
     
-    ssql <- "SELECT [pr]
-      ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
-	  ,[status]
-      ,[employee_num] as emp
-      ,[full_address]
-      ,[kobl]
-      ,[kved]
-      ,[kved_name]
-	  ,[forex_per_year_usd] as fpyu
-      ,[loan_value_uah] as loan_v_u
-      ,[passive_value_uah] as pass_v_u
-	  ,[revenue_uah]
-	  ,[tender_num] as ten_n
-      ,[tender_sum] as ten_s
-      ,[sek]
-      ,[person_details]
-      ,[phone]
-	  ,[last_client_result]
-      ,CAST( [last_date_contact] AS Date ) as [last_date_contact]
-	  ,[client_history]
-	  ,[comments]
-	  --,[login]
-  FROM [dbo].[database]
-  where login = '"
+#     ssql <- "SELECT [pr]
+#       ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
+# 	  ,[status]
+#       ,[employee_num] as emp
+#       ,[full_address]
+#       ,[kobl]
+#       ,[kved]
+#       ,[kved_name]
+# 	  ,[forex_per_year_usd] as fpyu
+#       ,[loan_value_uah] as loan_v_u
+#       ,[passive_value_uah] as pass_v_u
+# 	  ,[revenue_uah]
+# 	  ,[tender_num] as ten_n
+#       ,[tender_sum] as ten_s
+#       ,[sek]
+#       ,[person_details]
+#       ,[phone]
+# 	  ,[last_client_result]
+#       ,CAST( [last_date_contact] AS Date ) as [last_date_contact]
+# 	  ,[client_history]
+# 	  ,[comments]
+# 	  --,[login]
+#   FROM [dbo].[database]
+#   where login = '"
+    
   #where login = 'olanhaieva' and pr="
     
+    ssql <- "SELECT pr,
+    
+CASE
+WHEN client_name_short is NULL or client_name_short = '' THEN client_name
+ELSE client_name_short
+END AS cl
+	  ,status
+      ,employee_num as emp
+      ,full_address
+      ,kobl
+      ,kved
+      ,kved_name
+	  ,forex_per_year_usd as fpyu
+      ,loan_value_uah as loan_v_u
+      ,passive_value_uah as pass_v_u
+	  ,revenue_uah
+	  ,tender_num as ten_n
+      ,tender_sum as ten_s
+      ,sek
+      ,person_details
+      ,phone
+	  ,last_client_result
+      ,CAST(last_date_contact AS Date ) as last_date_contact
+	  ,client_history
+	  ,comments
+  FROM `database`
+    where login = '"
+    
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
     #data <- sqlQuery(con,paste0(ssql,input$edit))
-    data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "' and pr=", input$edit))
-    mutate(data, pr = sprintf("%008d", pr)) -> data
+    #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "' and pr=", input$edit))
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' and pr=", input$edit))
+    
+    
+    #mutate(data, pr = sprintf("%008d", pr)) -> data
+    
     #on.exit(RODBC::odbcClose(con))
     hold <- data
     
@@ -2315,18 +2480,42 @@ server <- function(input, output) {
     # ® 22.10.2021 10:30
     # "
     
-    ssql1 <- "UPDATE [dbo].[database]
+    
+    # ssql1 <- "UPDATE [dbo].[database]
+    # SET status = "
+    
+    ssql1 <- "UPDATE `database`
     SET status = "
     
     #format(Sys.time(), "%d.%m.%Y %X")
     
     #con <- odbcDriverConnect('driver={SQL Server};server=LAPTOP-0915C010\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
 
+    
+    
+    
+    # if(input$status == "запланована зустріч" | input$status == "запланований повторний дзвінок"){
+    #   data1 <- RODBC::sqlQuery(con,paste0(ssql1,"N'", input$status, "', [last_client_result] = FORMAT (cast('", input$work,"' as Date), 'd', 'hy-AM'), [client_history] = N'", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
+    #   }else{
+    #     data1 <- RODBC::sqlQuery(con,paste0(ssql1,"N'", input$status, "', [last_client_result] = N'", input$work,"', [client_history] = N'", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
+    #   }
+    
+    
     if(input$status == "запланована зустріч" | input$status == "запланований повторний дзвінок"){
-      data1 <- RODBC::sqlQuery(con,paste0(ssql1,"N'", input$status, "', [last_client_result] = FORMAT (cast('", input$work,"' as Date), 'd', 'hy-AM'), [client_history] = N'", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
-      }else{
-        data1 <- RODBC::sqlQuery(con,paste0(ssql1,"N'", input$status, "', [last_client_result] = N'", input$work,"', [client_history] = N'", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
-      }
+      #data1 <- RODBC::sqlQuery(con,paste0(ssql1,"'", input$status, "', last_client_result = date_format (cast('", input$work,"' as Date), '%d.%m.%Y'), client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
+      data1 <- dbSendQuery(
+        con,
+        paste0(ssql1,"'", input$status, "', last_client_result = date_format (cast('", input$work,"' as Date), '%d.%m.%Y'), client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit)
+      )
+    }else{
+      #data1 <- RODBC::sqlQuery(con,paste0(ssql1,"'", input$status, "', last_client_result = '", input$work,"', client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
+      data1 <- dbSendQuery(
+        con,
+        paste0(ssql1,"'", input$status, "', last_client_result = '", input$work,"', client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit)
+      )
+    }
+    
+    
     
     #print(paste0(ssql1,"'", input$status, "', [last_client_result] = FORMAT (cast('", input$work,"' as Date), 'd', 'hy-AM'), client_history = '", cl ,"' where login = 'olanhaieva' and pr=",input$edit))
     
@@ -2421,47 +2610,95 @@ server <- function(input, output) {
 
     
     
-    ssql <- sprintf("INSERT INTO [dbo].[hits] (login, status, entrydate) 
-                                                   VALUES ('%s', '%s', '%s')", input$managers, input$status, Sys.time())
-    data2 <- RODBC::sqlQuery(con, ssql)
+    # ssql <- sprintf("INSERT INTO [dbo].[hits] (login, status, entrydate) 
+    #                                                VALUES ('%s', '%s', '%s')", input$managers, input$status, Sys.time())
     
+    ssql <- sprintf("INSERT INTO hits (login, status, entrydate) 
+                                                   VALUES ('%s', '%s', '%s')", input$managers, input$status, Sys.time())
+    #data2 <- RODBC::sqlQuery(con, ssql)
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    data2 <- dbSendQuery(con, ssql)
 
 
   
-    ssql <- "SELECT top 1000 pr
-       ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
- 	  	  ,[dbo].[status_icons].[icon]
- 	  ,[dbo].[database].[status]
- 	  ,[last_client_result]
-     ,[employee_num] as emp
- 	  ,[forex_per_year_usd]
-       ,[loan_value_uah]
-       ,[passive_value_uah]
- 	  ,[revenue_uah]
- 	  ,[tender_num]
-       ,[tender_sum]
-       ,[sek]
-       ,[kved]
-       ,[kved_name]
-       ,[person_details]
-       ,[phone]
-       ,[full_address]
-       ,[kobl]
-       ,[login]
-     --,FORMAT ([last_date_contact], 'd', 'hy-AM') as [last_date_contact]
- 	  ,[client_history]
- 	  --,[comments]
-
-   FROM [dbo].[database] INNER JOIN
-                   [dbo].[status_icons] ON [database].status = [status_icons].status
-   where login = '"
+ #    ssql <- "SELECT top 1000 pr
+ #       ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
+ # 	  	  ,[dbo].[status_icons].[icon]
+ # 	  ,[dbo].[database].[status]
+ # 	  ,[last_client_result]
+ #     ,[employee_num] as emp
+ # 	  ,[forex_per_year_usd]
+ #       ,[loan_value_uah]
+ #       ,[passive_value_uah]
+ # 	  ,[revenue_uah]
+ # 	  ,[tender_num]
+ #       ,[tender_sum]
+ #       ,[sek]
+ #       ,[kved]
+ #       ,[kved_name]
+ #       ,[person_details]
+ #       ,[phone]
+ #       ,[full_address]
+ #       ,[kobl]
+ #       ,[login]
+ #     --,FORMAT ([last_date_contact], 'd', 'hy-AM') as [last_date_contact]
+ # 	  ,[client_history]
+ # 	  --,[comments]
+ # 
+ #   FROM [dbo].[database] INNER JOIN
+ #                   [dbo].[status_icons] ON [database].status = [status_icons].status
+ #   where login = '"
+    
     #where login = 'olanhaieva'"
     
     
-    #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "'"))
     
-    mutate(data, pr = sprintf("%008d", pr)) -> data
+    ssql <-    "SELECT pr,
+
+CASE
+WHEN client_name_short is NULL or client_name_short = '' THEN client_name
+ELSE client_name_short
+END AS cl
+ 	  	  ,status_icons.icon
+ 	  ,`database`.status
+ 	  ,last_client_result
+     ,employee_num as emp
+ 	  ,forex_per_year_usd
+       ,loan_value_uah
+       ,passive_value_uah
+ 	  ,revenue_uah
+ 	  ,tender_num
+       ,tender_sum
+       ,sek
+       ,kved
+       ,kved_name
+       ,person_details
+       ,phone
+       ,full_address
+       ,kobl
+       ,login
+ 	  ,client_history
+
+   FROM `database`  INNER JOIN
+                   status_icons ON `database`.status = status_icons.status 
+where login = '"
+    
+    
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
+    
+    #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "'"))
+    
+    #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "' LIMIT 1000"))
+    
+    
+    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' order by pr LIMIT 1000"))
+
+    
+    #mutate(data, pr = sprintf("%008d", pr)) -> data
     
     edit_onclick = sprintf(
       "Shiny.setInputValue(\"edit\", \"%s\", {priority: \"event\"})",
@@ -2504,7 +2741,8 @@ server <- function(input, output) {
       updateReactable("new_clients", data = data, page = page)
     })
 
-    on.exit(RODBC::odbcClose(con))
+    #on.exit(RODBC::odbcClose(con))
+    on.exit(dbDisconnect(con))
     removeModal()
 
 
@@ -2666,20 +2904,53 @@ server <- function(input, output) {
     #          right join balance_articles on pvt.ROW = balance_articles.ROW 
     #          order by id", okpo)  
     
-    ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', balance_articles.ROW as 'Код рядка', 
-iif(balance_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
-iif(balance_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
-iif(balance_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
-iif(balance_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
-iif(balance_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
-from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
-pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
-right join balance_articles on pvt.ROW = balance_articles.ROW 
+    
+    
+#     ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', balance_articles.ROW as 'Код рядка', 
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
+# from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
+# pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
+# right join balance_articles on pvt.ROW = balance_articles.ROW 
+# order by id", okpo)
+    
+    ssql <-  sprintf("SELECT QQ.id, QQ.ARTICLE as 'Назва статті', QQ.ROW as 'Код рядка', ifnull(QQ.`01.01.2024`,0) as '01.01.2024', ifnull(QQ.`01.01.2023`,0) as '01.01.2023', ifnull(QQ.`01.01.2022`,0) as '01.01.2022', ifnull(QQ.`01.01.2021`,0) as '01.01.2021', ifnull(QQ.`01.01.2020`,0) as '01.01.2020' 
+FROM 
+( Select * from (SELECT `ROW` AS `ROWS`,
+SUM(CASE
+  WHEN DATE = '01-01-2024' THEN SUMM ELSE 0 END
+) AS '01.01.2024',
+SUM(CASE
+  WHEN DATE = '01-01-2023' THEN SUMM ELSE 0 END
+) AS '01.01.2023',
+SUM(CASE
+  WHEN DATE = '01-01-2022' THEN SUMM ELSE 0 END
+) AS '01.01.2022',
+SUM(CASE
+  WHEN DATE = '01-01-2021' THEN SUMM ELSE 0 END
+) AS '01.01.2021',
+SUM(CASE
+  WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
+) AS '01.01.2020'
+FROM DATABASEFINZVIT
+WHERE OKPO = '%s'
+GROUP BY `ROWS`) as Q right join balance_articles on Q.ROWS = balance_articles.ROW ) AS QQ
 order by id", okpo)
     
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    data <- RODBC::sqlQuery(con,ssql)
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #data <- RODBC::sqlQuery(con,ssql)
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+
+    data <- dbGetQuery(con,ssql)
+    #on.exit(dbDisconnect(con))
+    
     balance <- data
 
     
@@ -2737,18 +3008,46 @@ order by id", okpo)
     
     
     
-    ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', finrez_articles.ROW as 'Код рядка', 
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
-from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
-pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
-right join finrez_articles on pvt.ROW = finrez_articles.ROW 
+#     ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', finrez_articles.ROW as 'Код рядка', 
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
+# from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
+# pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
+# right join finrez_articles on pvt.ROW = finrez_articles.ROW 
+# order by id", okpo)
+    
+    
+
+    ssql <-  sprintf("SELECT QQ.id, QQ.ARTICLE as 'Назва статті', QQ.ROW as 'Код рядка', ifnull(QQ.`01.01.2024`,0) as '01.01.2024', ifnull(QQ.`01.01.2023`,0) as '01.01.2023', ifnull(QQ.`01.01.2022`,0) as '01.01.2022', ifnull(QQ.`01.01.2021`,0) as '01.01.2021', ifnull(QQ.`01.01.2020`,0) as '01.01.2020' 
+FROM 
+( Select * from (SELECT `ROW` AS `ROWS`,
+SUM(CASE
+  WHEN DATE = '01-01-2024' THEN SUMM ELSE 0 END
+) AS '01.01.2024',
+SUM(CASE
+  WHEN DATE = '01-01-2023' THEN SUMM ELSE 0 END
+) AS '01.01.2023',
+SUM(CASE
+  WHEN DATE = '01-01-2022' THEN SUMM ELSE 0 END
+) AS '01.01.2022',
+SUM(CASE
+  WHEN DATE = '01-01-2021' THEN SUMM ELSE 0 END
+) AS '01.01.2021',
+SUM(CASE
+  WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
+) AS '01.01.2020'
+FROM DATABASEFINZVIT
+WHERE OKPO = '%s'
+GROUP BY `ROWS`) as Q right join finrez_articles on Q.ROWS = finrez_articles.ROW ) AS QQ
 order by id", okpo)
     
-    data <- RODBC::sqlQuery(con,ssql)
+    
+    #data <- RODBC::sqlQuery(con,ssql)
+    data <- dbGetQuery(con,ssql)
+
     finrez <- data
     
     
@@ -2855,7 +3154,8 @@ order by id", okpo)
     #         )
     
     #print(data)
-    on.exit(RODBC::odbcClose(con))
+    #on.exit(RODBC::odbcClose(con))
+    on.exit(dbDisconnect(con))
     
     
     output$company <- renderText({
@@ -2885,22 +3185,42 @@ order by id", okpo)
     print("!!!!!!!!!!!!!!!!!!!!!!")
     
     
-    ssql <- "SELECT [TIN]
-      ,[FIRM_NAME]
-      ,[S_CH]
-      ,[FIRM_RUK]
-      ,[FIRM_BUH]
-      ,[FIRM_ADR]
-      ,[FIRM_TELORG]
-      ,[FIRM_KVED]
-      ,[FIRM_KVEDNM]
-     FROM [dbo].[finzvitdata]
+    # ssql <- "SELECT [TIN]
+    #   ,[FIRM_NAME]
+    #   ,[S_CH]
+    #   ,[FIRM_RUK]
+    #   ,[FIRM_BUH]
+    #   ,[FIRM_ADR]
+    #   ,[FIRM_TELORG]
+    #   ,[FIRM_KVED]
+    #   ,[FIRM_KVEDNM]
+    #  FROM [dbo].[finzvitdata]
+    # where TIN = '"
+    
+    
+    ssql <- "SELECT TIN
+      ,FIRM_NAME
+      ,S_CH
+      ,FIRM_RUK
+      ,FIRM_BUH
+      ,FIRM_ADR
+      ,FIRM_TELORG
+      ,FIRM_KVED
+      ,FIRM_KVEDNM
+     FROM finzvitdata
     where TIN = '"
     
     
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    dataforcompanyname <- RODBC::sqlQuery(con, paste0(ssql, okpo,"'"))
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #dataforcompanyname <- RODBC::sqlQuery(con, paste0(ssql, okpo,"'"))
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    dataforcompanyname <- dbGetQuery(con, paste0(ssql, okpo,"'"))
+    #on.exit(dbDisconnect(con))
 
     company$name <- dataforcompanyname$FIRM_NAME
     
@@ -2911,20 +3231,58 @@ order by id", okpo)
     #          right join balance_articles on pvt.ROW = balance_articles.ROW 
     #          order by id", okpo)  
     
-    ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', balance_articles.ROW as 'Код рядка', 
-iif(balance_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
-iif(balance_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
-iif(balance_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
-iif(balance_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
-iif(balance_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
-from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
-pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
-right join balance_articles on pvt.ROW = balance_articles.ROW 
+    
+    
+#     ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', balance_articles.ROW as 'Код рядка', 
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
+# iif(balance_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
+# from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
+# pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
+# right join balance_articles on pvt.ROW = balance_articles.ROW 
+# order by id", okpo)
+#     
+    
+
+    
+    
+    ssql <-  sprintf("SELECT QQ.id, QQ.ARTICLE as 'Назва статті', QQ.ROW as 'Код рядка', ifnull(QQ.`01.01.2024`,0) as '01.01.2024', ifnull(QQ.`01.01.2023`,0) as '01.01.2023', ifnull(QQ.`01.01.2022`,0) as '01.01.2022', ifnull(QQ.`01.01.2021`,0) as '01.01.2021', ifnull(QQ.`01.01.2020`,0) as '01.01.2020' 
+FROM 
+( Select * from (SELECT `ROW` AS `ROWS`,
+SUM(CASE
+  WHEN DATE = '01-01-2024' THEN SUMM ELSE 0 END
+) AS '01.01.2024',
+SUM(CASE
+  WHEN DATE = '01-01-2023' THEN SUMM ELSE 0 END
+) AS '01.01.2023',
+SUM(CASE
+  WHEN DATE = '01-01-2022' THEN SUMM ELSE 0 END
+) AS '01.01.2022',
+SUM(CASE
+  WHEN DATE = '01-01-2021' THEN SUMM ELSE 0 END
+) AS '01.01.2021',
+SUM(CASE
+  WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
+) AS '01.01.2020'
+FROM DATABASEFINZVIT
+WHERE OKPO = '%s'
+GROUP BY `ROWS`) as Q right join balance_articles on Q.ROWS = balance_articles.ROW ) AS QQ
 order by id", okpo)
     
+    
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    data <- RODBC::sqlQuery(con,ssql)
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #data <- RODBC::sqlQuery(con,ssql)
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    data <- dbGetQuery(con, ssql)
+    #on.exit(dbDisconnect(con))
+    
     balance <- data
     
     
@@ -2983,18 +3341,48 @@ order by id", okpo)
     
     
     
-    ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', finrez_articles.ROW as 'Код рядка', 
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
-iif(finrez_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
-from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
-pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
-right join finrez_articles on pvt.ROW = finrez_articles.ROW 
+#     ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', finrez_articles.ROW as 'Код рядка', 
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2024] IS NULL,0,[01-01-2024]) as '01.01.2024',
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2023] IS NULL,0,[01-01-2023]) as '01.01.2023',
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2022] IS NULL,0,[01-01-2022]) as '01.01.2022', 
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2021] IS NULL,0,[01-01-2021]) as '01.01.2021', 
+# iif(finrez_articles.ROW IS NOT NULL and [01-01-2020] IS NULL,0,[01-01-2020]) as '01.01.2020'
+# from (SELECT * FROM [DATABASEFINZVIT] where okpo = '%s') as pv
+# pivot (max(SUMM) for DATE in ([01-01-2024],[01-01-2023],[01-01-2022],[01-01-2021],[01-01-2020])) as pvt 
+# right join finrez_articles on pvt.ROW = finrez_articles.ROW 
+# order by id", okpo)
+    
+    
+    
+    ssql <-  sprintf("SELECT QQ.id, QQ.ARTICLE as 'Назва статті', QQ.ROW as 'Код рядка', ifnull(QQ.`01.01.2024`,0) as '01.01.2024', ifnull(QQ.`01.01.2023`,0) as '01.01.2023', ifnull(QQ.`01.01.2022`,0) as '01.01.2022', ifnull(QQ.`01.01.2021`,0) as '01.01.2021', ifnull(QQ.`01.01.2020`,0) as '01.01.2020' 
+FROM 
+( Select * from (SELECT `ROW` AS `ROWS`,
+SUM(CASE
+  WHEN DATE = '01-01-2024' THEN SUMM ELSE 0 END
+) AS '01.01.2024',
+SUM(CASE
+  WHEN DATE = '01-01-2023' THEN SUMM ELSE 0 END
+) AS '01.01.2023',
+SUM(CASE
+  WHEN DATE = '01-01-2022' THEN SUMM ELSE 0 END
+) AS '01.01.2022',
+SUM(CASE
+  WHEN DATE = '01-01-2021' THEN SUMM ELSE 0 END
+) AS '01.01.2021',
+SUM(CASE
+  WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
+) AS '01.01.2020'
+FROM DATABASEFINZVIT
+WHERE OKPO = '%s'
+GROUP BY `ROWS`) as Q right join finrez_articles on Q.ROWS = finrez_articles.ROW ) AS QQ
 order by id", okpo)
     
-    data <- RODBC::sqlQuery(con,ssql)
+   # data <- RODBC::sqlQuery(con,ssql)
+    
+    
+    data <- dbGetQuery(con, ssql)
+    #on.exit(dbDisconnect(con))
+    
     finrez <- data
     
     
@@ -3100,7 +3488,8 @@ order by id", okpo)
     #         )
     
     #print(data)
-    on.exit(RODBC::odbcClose(con))
+    #on.exit(RODBC::odbcClose(con))
+    on.exit(dbDisconnect(con))
     
     
     output$company3 <- renderText({
@@ -3112,16 +3501,48 @@ order by id", okpo)
   
   data_status_results <- reactive({
     
-    ssql <- "select login, cast([продана послуга] as float)/(cast([не був оброблений] as float) + cast([запланована зустріч] as float) + cast([запланований повторний дзвінок] as float) + cast([відмова] as float))*10 as rating, [продана послуга],[запланована зустріч],[запланований повторний дзвінок],[відмова],[не був оброблений] from 
-              (SELECT top 1000 [login], [status], [status] as count_status
-               FROM [dbo].[database]
+    
+    
+    # ssql <- "select login, cast([продана послуга] as float)/(cast([не був оброблений] as float) + cast([запланована зустріч] as float) + cast([запланований повторний дзвінок] as float) + cast([відмова] as float))*10 as rating, [продана послуга],[запланована зустріч],[запланований повторний дзвінок],[відмова],[не був оброблений] from 
+    #           (SELECT top 1000 [login], [status], [status] as count_status
+    #            FROM [dbo].[database]
+    #            ) as Q
+    #            PIVOT (count(count_status) FOR [status] IN ([продана послуга],[запланована зустріч],[запланований повторний дзвінок],[відмова],[не був оброблений])) AS QQ order by 1" #where login = 'olanhaieva'"
+    
+    
+    ssql <- "select login, 
+cast(`продана послуга` as DECIMAL(24,0))/(cast(`не був оброблений` as DECIMAL(24,0)) + cast(`запланована зустріч` as DECIMAL(24,0)) + cast(`запланований повторний дзвінок` as DECIMAL(24,0)) + cast(`відмова` as DECIMAL(24,0)))*10 as rating,
+`продана послуга`,`запланована зустріч`,`запланований повторний дзвінок`,`відмова`,`не був оброблений`
+ from (
+
+SELECT login,
+
+SUM(status = 'продана послуга') AS 'продана послуга',
+SUM(status = 'запланована зустріч') AS 'запланована зустріч',
+SUM(status = 'запланований повторний дзвінок') AS 'запланований повторний дзвінок',
+SUM(status = 'відмова') AS 'відмова',
+SUM(status = 'не був оброблений') AS 'не був оброблений'
+FROM  (SELECT login, status, status as count_status
+               FROM `database`
+               LIMIT 1000
                ) as Q
-               PIVOT (count(count_status) FOR [status] IN ([продана послуга],[запланована зустріч],[запланований повторний дзвінок],[відмова],[не був оброблений])) AS QQ order by 1" #where login = 'olanhaieva'"
+GROUP BY login ) AS QQ"
+    
+    
     
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    data_status_results <- RODBC::sqlQuery(con, ssql)
-    on.exit(RODBC::odbcClose(con))
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #data_status_results <- RODBC::sqlQuery(con, ssql)
+    
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    data_status_results <- dbGetQuery(con, ssql)
+    on.exit(dbDisconnect(con))
+    
+    #on.exit(RODBC::odbcClose(con))
     
     
     data_status_results <- cbind(
@@ -3173,15 +3594,31 @@ order by id", okpo)
   
   data_status_results_hits <- reactive({
     
-    ssql <- "SELECT login, count(status) as count_status,  FORMAT ([entrydate], 'd', 'hy-AM') as [entrydate], Convert(date,  [entrydate])  as sort
-                FROM [dbo].[hits]
-                group by login, FORMAT ([entrydate], 'd', 'hy-AM'),   Convert(date,  [entrydate])  
+    # ssql <- "SELECT login, count(status) as count_status,  FORMAT ([entrydate], 'd', 'hy-AM') as [entrydate], Convert(date,  [entrydate])  as sort
+    #             FROM [dbo].[hits]
+    #             group by login, FORMAT ([entrydate], 'd', 'hy-AM'),   Convert(date,  [entrydate])  
+    #             order by 1, 4"
+    
+    
+    ssql <-  "SELECT login, count(status) as count_status,  
+            date_format(entrydate, '%d.%m.%Y') as entrydate, cast(entrydate as date) as sort
+                FROM hits
+                group by login,  date_format(entrydate, '%d.%m.%Y'),   cast(entrydate as date)   
                 order by 1, 4"
     
+    
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    data_status_results_hits <- RODBC::sqlQuery(con, ssql)
-    on.exit(RODBC::odbcClose(con))
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #data_status_results_hits <- RODBC::sqlQuery(con, ssql)
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    data_status_results_hits <- dbGetQuery(con, ssql)
+    on.exit(dbDisconnect(con))
+    
+    #on.exit(RODBC::odbcClose(con))
     
   
     return(data_status_results_hits)
@@ -3688,122 +4125,153 @@ order by id", okpo)
   
   data_income_results <- reactive({
     
-    ssql <- "SELECT '<img src=''accordbank.svg'' height=''20'' data-toggle=''tooltip'' data-placement=''right'' title=''Акордбанк''>' as icon, [client]
-      ,[group]
-      ,[EDRPO]
-      ,[cust]
-      ,[cust open date]
-      ,[branch]
-      ,[segment]
-      ,[client type]
-      ,[RM]
-      ,[ManageLogin]
-      ,isnull([▲% марж дох на акт],0) as [▲% марж дох на акт]
-      ,isnull([▲% марж дох на пас],0) as [▲% марж дох на пас]
-      ,isnull([▲коміс дохід],0) as [▲коміс дохід]
-      ,isnull([▲в тч коміс по док інстр],0) as [▲в тч коміс по док інстр]
-      ,isnull([▲в тч кред коміс],0) as [▲в тч кред коміс]
-      ,isnull([▲коміс від куп-прод вал],0) as [▲коміс від куп-прод вал]
-      ,isnull([▲інші коміс (РКО, інші…)],0) as [▲інші коміс (РКО, інші…)]
-      ,isnull([▲заг дохід],0) as [▲заг дохід]
-      ,isnull([▲дохід казнач],0) as [▲дохід казнач]
-      ,isnull([▲середден розмір актив],0) as [▲середден розмір актив]
-      ,isnull([▲середден розмір пасив],0) as [▲середден розмір пасив]
-      ,isnull([▲заг дох акт (ROA)],0) as [▲заг дох акт (ROA)]
-  FROM [dbo].[comissdata]"
+  #   ssql <- "SELECT '<img src=''accordbank.svg'' height=''20'' data-toggle=''tooltip'' data-placement=''right'' title=''Акордбанк''>' as icon, [client]
+  #     ,[group]
+  #     ,[EDRPO]
+  #     ,[cust]
+  #     ,[cust open date]
+  #     ,[branch]
+  #     ,[segment]
+  #     ,[client type]
+  #     ,[RM]
+  #     ,[ManageLogin]
+  #     ,isnull([▲% марж дох на акт],0) as [▲% марж дох на акт]
+  #     ,isnull([▲% марж дох на пас],0) as [▲% марж дох на пас]
+  #     ,isnull([▲коміс дохід],0) as [▲коміс дохід]
+  #     ,isnull([▲в тч коміс по док інстр],0) as [▲в тч коміс по док інстр]
+  #     ,isnull([▲в тч кред коміс],0) as [▲в тч кред коміс]
+  #     ,isnull([▲коміс від куп-прод вал],0) as [▲коміс від куп-прод вал]
+  #     ,isnull([▲інші коміс (РКО, інші…)],0) as [▲інші коміс (РКО, інші…)]
+  #     ,isnull([▲заг дохід],0) as [▲заг дохід]
+  #     ,isnull([▲дохід казнач],0) as [▲дохід казнач]
+  #     ,isnull([▲середден розмір актив],0) as [▲середден розмір актив]
+  #     ,isnull([▲середден розмір пасив],0) as [▲середден розмір пасив]
+  #     ,isnull([▲заг дох акт (ROA)],0) as [▲заг дох акт (ROA)]
+  # FROM [dbo].[comissdata]"
 
+    ssql <-  "SELECT '<img src=''accordbank.svg'' height=''20'' data-toggle=''tooltip'' data-placement=''right'' title=''Акордбанк''>' as icon, 
+client, `group`
+      ,EDRPO
+      ,cust
+      ,`cust open date`
+      ,branch
+      ,segment
+      ,`client type`
+      ,`RM`
+      ,`ManageLogin`
+      ,IFNULL(`▲% марж дох на акт`,0)  as `▲% марж дох на акт`
+      ,IFNULL(`▲% марж дох на пас`,0) as `▲% марж дох на пас`
+      ,IFNULL(`▲коміс дохід`,0) as `▲коміс дохід`
+      ,IFNULL(`▲в тч коміс по док інстр`,0) as `▲в тч коміс по док інстр`
+      ,IFNULL(`▲в тч кред коміс`,0) as `▲в тч кред коміс`
+      ,IFNULL(`▲коміс від куп-прод вал`,0) as `▲коміс від куп-прод вал`
+      ,IFNULL(`▲інші коміс (РКО, інші…)`,0) as `▲інші коміс (РКО, інші…)`
+      ,IFNULL(`▲заг дохід`,0) as `▲заг дохід`
+      ,IFNULL(`▲дохід казнач`,0) as `▲дохід казнач`
+      ,IFNULL(`▲середден розмір актив`,0) as `▲середден розмір актив`
+      ,IFNULL(`▲середден розмір пасив`,0) as `▲середден розмір пасив`
+      ,IFNULL(`▲заг дох акт (ROA)`,0) as `▲заг дох акт (ROA)`
+  FROM comissdata"
+    
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    data_income_results <- RODBC::sqlQuery(con, ssql)
-    on.exit(RODBC::odbcClose(con))
+    #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+    #data_income_results <- RODBC::sqlQuery(con, ssql)
+    #on.exit(RODBC::odbcClose(con))
+    
+    con <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host,
+                     port = options()$mysql$port, user = options()$mysql$user,
+                     password = options()$mysql$password)
+    
+    data_income_results <- dbGetQuery(con, ssql)
+    on.exit(dbDisconnect(con))
   
     
     return(data_income_results)
   })
   
-  data_income_results_details <- reactive({
-    
-    ssql <- "select * from (SELECT [client],[EDRPO],[cust], dates, feature_ukr, sort, round(SUMM,1) as SM
-  FROM
- (SELECT [client]
-      ,[EDRPO]
-      ,[cust]
-      ,[interest margin assets]
-      ,[thereof loans1]
-      ,[thereof overdrafts1]
-      ,[interest margin liabilities]
-      ,[thereof cash on ca]
-      ,[thereof term deposits1]
-      ,[Commision income]
-      ,[thereof doc Instruments]
-      ,[thereof loan commisions]
-      ,[thereof FX commision]
-      ,[thereof other commisions]
-      ,[agents expenses]
-      ,[total income]
-      ,[treasury income]
-      ,[Av Assets]
-      ,[thereof loans2]
-      ,[thereof overdrafts2]
-      ,[Av Exposure on Doc instruments]
-      ,[thereof bid, performance, touristic bonds]
-      ,[thereof other Doc instruments]
-      ,[Av Liabilities]
-      ,[thereof cash on c_a]
-      ,[thereof term deposits2]
-      ,[thereof FCY]
-      ,[thereof UAH]
-      ,[ROA]
-      ,[ROA non-lending]
-      ,[ROA (incl doc instr)]
-      ,[ROA (incl doc instr) non-lending]
-      ,[dates]
- FROM [dbo].[DATABASEcomision] inner join (SELECT [ManageReportName] FROM [dbo].[HB_MANAGERS]) AS Q on [ManageReportName] = RM) p
- UNPIVOT (SUMM FOR feature IN ([interest margin assets]
-      ,[thereof loans1]
-      ,[thereof overdrafts1]
-      ,[interest margin liabilities]
-      ,[thereof cash on ca]
-      ,[thereof term deposits1]
-      ,[Commision income]
-      ,[thereof doc Instruments]
-      ,[thereof loan commisions]
-      ,[thereof FX commision]
-      ,[thereof other commisions]
-      ,[agents expenses]
-      ,[total income]
-      ,[treasury income]
-      ,[Av Assets]
-      ,[thereof loans2]
-      ,[thereof overdrafts2]
-      ,[Av Exposure on Doc instruments]
-      ,[thereof bid, performance, touristic bonds]
-      ,[thereof other Doc instruments]
-      ,[Av Liabilities]
-      ,[thereof cash on c_a]
-      ,[thereof term deposits2]
-      ,[thereof FCY]
-      ,[thereof UAH]
-      ,[ROA]
-      ,[ROA non-lending]
-      ,[ROA (incl doc instr)]
-      ,[ROA (incl doc instr) non-lending])
- )AS unpvt inner join HB_SORT on unpvt.feature = HB_SORT.feature) as pv
-   
-   
-
-pivot (sum(SM) for dates in ([202108],[202107],[202106],[202105],[202104],[202103],[202102],[202101])) as pvt 
-order by sort
-"
-    
-    #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
-    con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
-    data_income_results_details <- RODBC::sqlQuery(con, ssql)
-    on.exit(RODBC::odbcClose(con))
-    
-    
-    return(data_income_results_details)
-  })
+#   data_income_results_details <- reactive({
+#     
+#     ssql <- "select * from (SELECT [client],[EDRPO],[cust], dates, feature_ukr, sort, round(SUMM,1) as SM
+#   FROM
+#  (SELECT [client]
+#       ,[EDRPO]
+#       ,[cust]
+#       ,[interest margin assets]
+#       ,[thereof loans1]
+#       ,[thereof overdrafts1]
+#       ,[interest margin liabilities]
+#       ,[thereof cash on ca]
+#       ,[thereof term deposits1]
+#       ,[Commision income]
+#       ,[thereof doc Instruments]
+#       ,[thereof loan commisions]
+#       ,[thereof FX commision]
+#       ,[thereof other commisions]
+#       ,[agents expenses]
+#       ,[total income]
+#       ,[treasury income]
+#       ,[Av Assets]
+#       ,[thereof loans2]
+#       ,[thereof overdrafts2]
+#       ,[Av Exposure on Doc instruments]
+#       ,[thereof bid, performance, touristic bonds]
+#       ,[thereof other Doc instruments]
+#       ,[Av Liabilities]
+#       ,[thereof cash on c_a]
+#       ,[thereof term deposits2]
+#       ,[thereof FCY]
+#       ,[thereof UAH]
+#       ,[ROA]
+#       ,[ROA non-lending]
+#       ,[ROA (incl doc instr)]
+#       ,[ROA (incl doc instr) non-lending]
+#       ,[dates]
+#  FROM [dbo].[DATABASEcomision] inner join (SELECT [ManageReportName] FROM [dbo].[HB_MANAGERS]) AS Q on [ManageReportName] = RM) p
+#  UNPIVOT (SUMM FOR feature IN ([interest margin assets]
+#       ,[thereof loans1]
+#       ,[thereof overdrafts1]
+#       ,[interest margin liabilities]
+#       ,[thereof cash on ca]
+#       ,[thereof term deposits1]
+#       ,[Commision income]
+#       ,[thereof doc Instruments]
+#       ,[thereof loan commisions]
+#       ,[thereof FX commision]
+#       ,[thereof other commisions]
+#       ,[agents expenses]
+#       ,[total income]
+#       ,[treasury income]
+#       ,[Av Assets]
+#       ,[thereof loans2]
+#       ,[thereof overdrafts2]
+#       ,[Av Exposure on Doc instruments]
+#       ,[thereof bid, performance, touristic bonds]
+#       ,[thereof other Doc instruments]
+#       ,[Av Liabilities]
+#       ,[thereof cash on c_a]
+#       ,[thereof term deposits2]
+#       ,[thereof FCY]
+#       ,[thereof UAH]
+#       ,[ROA]
+#       ,[ROA non-lending]
+#       ,[ROA (incl doc instr)]
+#       ,[ROA (incl doc instr) non-lending])
+#  )AS unpvt inner join HB_SORT on unpvt.feature = HB_SORT.feature) as pv
+#    
+#    
+# 
+# pivot (sum(SM) for dates in ([202108],[202107],[202106],[202105],[202104],[202103],[202102],[202101])) as pvt 
+# order by sort
+# "
+#     
+#     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
+#     con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
+#     data_income_results_details <- RODBC::sqlQuery(con, ssql)
+#     on.exit(RODBC::odbcClose(con))
+#     
+#     
+#     return(data_income_results_details)
+#   })
   
   output$income_results <- renderReactable({
 

@@ -3,7 +3,7 @@
 # Example R code to install packages if not already installed
 #
 
-my_packages = c("shiny", "shinyBS", "shinythemes", "shinydashboard", "shinyauthr", "shinyjs", "shinyWidgets", "shinycssloaders", "dplyr", "tidyr", "openxlsx", "data.table", "RODBC", "DT", "reactable", "htmltools", "gtrendsR", "highcharter", "lubridate")
+my_packages = c("shiny", "shinyBS", "shinythemes", "shinydashboard", "shinyauthr", "shinyjs", "shinyWidgets", "shinycssloaders", "dplyr", "tidyr", "openxlsx", "data.table", "RMySQL", "DBI", "DT", "reactable", "htmltools", "gtrendsR", "highcharter", "lubridate")
 
 install_if_missing = function(p) {
   if (p %in% rownames(installed.packages()) == FALSE) {
