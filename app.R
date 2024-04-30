@@ -7,13 +7,22 @@
 #    http://shiny.rstudio.com/
 #
 
+# options(mysql = list(
+#   "host" = "127.0.0.1",
+#   "port" = 3306,
+#   "user" = "root",
+#   "password" = "WIN72007@NAZAr"
+# ))
+# databaseName <- "crmsystem"
+
 options(mysql = list(
-  "host" = "127.0.0.1",
+  "host" = "eu-cluster-west-01.k8s.cleardb.net",
   "port" = 3306,
-  "user" = "root",
-  "password" = "WIN72007@NAZAr"
+  "user" = "bc6a3dad916b4a",
+  "password" = "0c7f407f"
 ))
-databaseName <- "crmsystem"
+databaseName <- "heroku_623d565686a87a4"
+
 #table <- "clients"
 
 css <- HTML("@import url('https://fonts.googleapis.com/css?family=Source+Code+Pro:200');
@@ -664,7 +673,7 @@ theme = shinytheme("superhero"),
 server <- function(input, output, session) {
   
   session$onSessionEnded(function(){
-    print("KILL CON!!!!!!!!!!!!!!!!!!!!!!!")
+    print("CLEAR CONNECTIONS!!!!!!!!!!!!!!!!!!!!!!!")
     cons<-dbListConnections(MySQL()) 
     for(con in cons) {
       dbDisconnect(con)
@@ -1120,7 +1129,7 @@ where login = '"
       ,FIRM_KVED
       ,FIRM_KVEDNM
 
-     FROM finzvitdata
+     FROM heroku_623d565686a87a4.finzvitdata
     where TIN = '"
     
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
@@ -2252,7 +2261,7 @@ END AS cl
       ,CAST(last_date_contact AS Date ) as last_date_contact
 	  ,client_history
 	  ,comments
-  FROM `database`
+  FROM heroku_623d565686a87a4.database
   where login = '"
     
     
@@ -2268,7 +2277,9 @@ END AS cl
                      port = options()$mysql$port, user = options()$mysql$user,
                      password = options()$mysql$password)
     
-    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' and pr=", input$edit))
+    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' and pr='", input$edit,"'"))
+
+    
     on.exit(dbDisconnect(con))
     
     hold <- data
@@ -2424,7 +2435,7 @@ END AS cl
       ,CAST(last_date_contact AS Date ) as last_date_contact
 	  ,client_history
 	  ,comments
-  FROM `database`
+  FROM heroku_623d565686a87a4.database
     where login = '"
     
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
@@ -2436,7 +2447,7 @@ END AS cl
                      port = options()$mysql$port, user = options()$mysql$user,
                      password = options()$mysql$password)
     
-    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' and pr=", input$edit))
+    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' and pr='", input$edit,"'"))
     
     
     #mutate(data, pr = sprintf("%008d", pr)) -> data
@@ -2484,7 +2495,7 @@ END AS cl
     # ssql1 <- "UPDATE [dbo].[database]
     # SET status = "
     
-    ssql1 <- "UPDATE `database`
+    ssql1 <- "UPDATE heroku_623d565686a87a4.database
     SET status = "
     
     #format(Sys.time(), "%d.%m.%Y %X")
@@ -2505,13 +2516,13 @@ END AS cl
       #data1 <- RODBC::sqlQuery(con,paste0(ssql1,"'", input$status, "', last_client_result = date_format (cast('", input$work,"' as Date), '%d.%m.%Y'), client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
       data1 <- dbSendQuery(
         con,
-        paste0(ssql1,"'", input$status, "', last_client_result = date_format (cast('", input$work,"' as Date), '%d.%m.%Y'), client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit)
+        paste0(ssql1,"'", input$status, "', last_client_result = date_format (cast('", input$work,"' as Date), '%d.%m.%Y'), client_history = '", client_history ,"' where login = '", input$managers ,"' and pr='",input$edit, "'")
       )
     }else{
       #data1 <- RODBC::sqlQuery(con,paste0(ssql1,"'", input$status, "', last_client_result = '", input$work,"', client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
       data1 <- dbSendQuery(
         con,
-        paste0(ssql1,"'", input$status, "', last_client_result = '", input$work,"', client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit)
+        paste0(ssql1,"'", input$status, "', last_client_result = '", input$work,"', client_history = '", client_history ,"' where login = '", input$managers ,"' and pr='",input$edit,"'")
       )
     }
     
@@ -2623,7 +2634,6 @@ END AS cl
     
     data2 <- dbSendQuery(con, ssql)
 
-
   
  #    ssql <- "SELECT top 1000 pr
  #       ,iif([client_name_short] is NULL or [client_name_short] = '',[client_name],[client_name_short]) as cl
@@ -2683,8 +2693,8 @@ END AS cl
        ,login
  	  ,client_history
 
-   FROM `database`  INNER JOIN
-                   status_icons ON `database`.status = status_icons.status 
+   FROM heroku_623d565686a87a4.database  INNER JOIN
+                   status_icons ON heroku_623d565686a87a4.database.status = status_icons.status 
 where login = '"
     
     
@@ -2696,6 +2706,7 @@ where login = '"
     
     
     data <- dbGetQuery(con,  paste0(ssql,input$managers, "' order by pr LIMIT 1000"))
+    
 
     
     #mutate(data, pr = sprintf("%008d", pr)) -> data
@@ -2935,7 +2946,7 @@ SUM(CASE
 SUM(CASE
   WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
 ) AS '01.01.2020'
-FROM DATABASEFINZVIT
+FROM heroku_623d565686a87a4.databasefinzvit
 WHERE OKPO = '%s'
 GROUP BY `ROWS`) as Q right join balance_articles on Q.ROWS = balance_articles.ROW ) AS QQ
 order by id", okpo)
@@ -3039,7 +3050,7 @@ SUM(CASE
 SUM(CASE
   WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
 ) AS '01.01.2020'
-FROM DATABASEFINZVIT
+FROM heroku_623d565686a87a4.databasefinzvit
 WHERE OKPO = '%s'
 GROUP BY `ROWS`) as Q right join finrez_articles on Q.ROWS = finrez_articles.ROW ) AS QQ
 order by id", okpo)
@@ -3266,7 +3277,7 @@ SUM(CASE
 SUM(CASE
   WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
 ) AS '01.01.2020'
-FROM DATABASEFINZVIT
+FROM heroku_623d565686a87a4.databasefinzvit
 WHERE OKPO = '%s'
 GROUP BY `ROWS`) as Q right join balance_articles on Q.ROWS = balance_articles.ROW ) AS QQ
 order by id", okpo)
@@ -3372,7 +3383,7 @@ SUM(CASE
 SUM(CASE
   WHEN DATE = '01-01-2020' THEN SUMM ELSE 0 END
 ) AS '01.01.2020'
-FROM DATABASEFINZVIT
+FROM heroku_623d565686a87a4.databasefinzvit
 WHERE OKPO = '%s'
 GROUP BY `ROWS`) as Q right join finrez_articles on Q.ROWS = finrez_articles.ROW ) AS QQ
 order by id", okpo)
@@ -3691,6 +3702,11 @@ GROUP BY login ) AS QQ"
       title = paste("Щоденна активність - ", data_status_results()[input$plot,"login"]),
       #style = "font-size:12px",
       highchartOutput("plot1",width = '100%', height = 250),
+      
+      # dateRangeInput("daterange1", "Date range:",
+      #                start = "2001-01-01",
+      #                end   = "2010-12-31",language = "uk"),
+      
       removeModal()
     )
     )
@@ -4171,7 +4187,7 @@ client, `group`
       ,IFNULL(`▲середден розмір актив`,0) as `▲середден розмір актив`
       ,IFNULL(`▲середден розмір пасив`,0) as `▲середден розмір пасив`
       ,IFNULL(`▲заг дох акт (ROA)`,0) as `▲заг дох акт (ROA)`
-  FROM comissdata"
+  FROM heroku_623d565686a87a4.comissdata"
     
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};server=localhost\\SQLEXPRESS;database=crmsystem;trusted_connection=true')
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
