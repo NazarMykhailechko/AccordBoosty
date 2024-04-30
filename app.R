@@ -790,19 +790,19 @@ server <- function(input, output, session) {
           if(isTruthy(user_data()$user) && user_data()$user == 'tops'){
 
 
-            shinyjs::enable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Клієнти для опрацювання"')
-            shinyjs::enable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Результати роботи"')
-            shinyjs::enable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Звіт по доходах і об\'ємах операцій"')
-            shinyjs::enable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Фінансова звітність"')
+            shinyjs::enable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Клієнти для опрацювання"')
+            shinyjs::enable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Результати роботи"')
+            shinyjs::enable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Звіт по доходах і об\'ємах операцій"')
+            shinyjs::enable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Фінансова звітність"')
             runjs('$("#nbpage li:first a").trigger("click");')
             
             
           }else if(isTruthy(user_data()$user) && user_data()$user == 'risks'){
             #shinyjs::useShinyjs()
-            shinyjs::disable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Клієнти для опрацювання"')
-            shinyjs::disable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Результати роботи"')
-            shinyjs::disable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Звіт по доходах і об\'ємах операцій"')
-            shinyjs::enable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Фінансова звітність"')
+            shinyjs::disable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Клієнти для опрацювання"')
+            shinyjs::disable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Результати роботи"')
+            shinyjs::disable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Звіт по доходах і об\'ємах операцій"')
+            shinyjs::enable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Фінансова звітність"')
             runjs('$("#nbpage li:nth-child(1) i").removeClass("fas fa-user-group fa-fw").addClass("fa-sharp fa-solid fa-lock").css("color", "#df691a");')
             runjs('$("#nbpage li:nth-child(2) i").removeClass("fas fa-chart-line fa-fw").addClass("fa-sharp fa-solid fa-lock").css("color", "#df691a");')
             runjs('$("#nbpage li:nth-child(3) i").removeClass("fas fa-sack-dollar fa-fw").addClass("fa-sharp fa-solid fa-lock").css("color", "#df691a");')
@@ -810,10 +810,10 @@ server <- function(input, output, session) {
 
           }else{
             #shinyjs::useShinyjs()
-            shinyjs::enable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Клієнти для опрацювання"')
-            shinyjs::disable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Результати роботи"')
-            shinyjs::disable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Звіт по доходах і об\'ємах операцій"')
-            shinyjs::disable(selector = '.nav.navbar-nav.nav-underline.shiny-tab-input.shiny-bound-input a[data-value="Фінансова звітність"')
+            shinyjs::enable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Клієнти для опрацювання"')
+            shinyjs::disable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Результати роботи"')
+            shinyjs::disable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Звіт по доходах і об\'ємах операцій"')
+            shinyjs::disable(selector = '.nav.navbar-nav.shiny-tab-input.shiny-bound-input a[data-value="Фінансова звітність"')
             runjs('$("#nbpage li:nth-child(2) i").removeClass("fas fa-chart-line fa-fw").addClass("fa-sharp fa-solid fa-lock").css("color", "#df691a");')
             runjs('$("#nbpage li:nth-child(3) i").removeClass("fas fa-sack-dollar fa-fw").addClass("fa-sharp fa-solid fa-lock").css("color", "#df691a");')
             runjs('$("#nbpage li:nth-child(4) i").removeClass("fas fa-list-check fa-fw").addClass("fa-sharp fa-solid fa-lock").css("color", "#df691a");')
