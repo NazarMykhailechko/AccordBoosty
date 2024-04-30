@@ -3232,7 +3232,7 @@ order by id", okpo)
     dataforcompanyname <- DBI::dbGetQuery(con, paste0(ssql, okpo,"'"))
     #on.exit(dbDisconnect(con))
 
-    company$name <- DBI::dataforcompanyname$FIRM_NAME
+    company$name <- dataforcompanyname$FIRM_NAME
     
     
     # ssql <- sprintf("SELECT cast(id as int) as id, ARTICLE as 'Назва статті', balance_articles.ROW as 'Код рядка', [01-01-2023] as '01.01.2023',[01-01-2022] as '01.01.2022',[01-01-2021] as '01.01.2021',[01-01-2020] as '01.01.2020'
