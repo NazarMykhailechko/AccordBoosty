@@ -184,6 +184,7 @@ library(shinydashboard)
 library(shinyauthr)
 library(shinyjs)
 library(shinyWidgets)
+library(shinyFeedback)
 #library(shinymanager)
 library(shinycssloaders)
 library(dplyr)
@@ -247,6 +248,7 @@ div( id = "display_content", navbarPage (id = "nbpage", title = title, collapsib
                                   <option value=\"surzhenko\">surzhenko</option>
                                   <option value=\"zaikav\">zaikav</option>
                               </select></div>")),
+                      
                       
 
                       
@@ -333,6 +335,7 @@ div( id = "display_content", navbarPage (id = "nbpage", title = title, collapsib
              
              tags$head(
                HTML("
+                     <meta name='viewport' content= 'width=device-width, initial-scale=1.0'>
                      <link rel='shortcut icon' sizes='16x16' href='accordbank.svg'>
                  ")
              ),
@@ -2331,11 +2334,22 @@ END AS cl
         style = "font-size:12px;",
         footer = list(
           modalButton('Відміна'),
-          actionButton(inputId = 'save',
-                       #ns('submit'),
-                       label = 'Зберегти',
-                       class = "btn btn-primary",
-                       style = "color: white"
+          # actionButton(inputId = 'save',
+          #              #ns('submit'),
+          #              label = 'Зберегти',
+          #              class = "btn btn-primary",
+          #              style = "color: white"
+          # ),
+          loadingButton(inputId = 'save',label = 'Зберегти',
+                        
+                        
+                        class = "btn btn-primary",
+                        style = "width: 150px;color: white",
+                        loadingLabel = "Збереження...",
+                        #loadingSpinner = "spinner",
+                        loadingSpinner = "circle-notch",
+                        #loadingSpinner = "sync",
+                        #loadingSpinner = "cog",
           )
         ),
         
@@ -2747,9 +2761,9 @@ where login = '"
     
 
     
-    observe({
+    #observe({
       updateReactable("new_clients", data = data, page = page)
-    })
+    #})
 
     #on.exit(RODBC::odbcClose(con))
     on.exit(dbDisconnect(con))
