@@ -23,7 +23,7 @@
 # ))
 # databaseName <- "heroku_623d565686a87a4"
 
-pool <- dbPool(
+pool <- pool::dbPool(
   drv = RMySQL::MySQL(),
   dbname = "heroku_623d565686a87a4",
   host = "eu-cluster-west-01.k8s.cleardb.net",
