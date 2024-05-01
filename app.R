@@ -687,15 +687,15 @@ theme = shinytheme("superhero"),
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
   
-  session$onSessionEnded(function(){
-    print("CLEAR CONNECTIONS!!!!!!!!!!!!!!!!!!!!!!!")
-    # cons<-dbListConnections(RMySQL::MySQL())
-    # for(con in cons) {
-    #   print(con)
-    #   dbDisconnect(con)
-    # }
-    poolClose(pool)
-  })
+  # session$onSessionEnded(function(){
+  #   print("CLEAR CONNECTIONS!!!!!!!!!!!!!!!!!!!!!!!")
+  #   # cons<-dbListConnections(RMySQL::MySQL())
+  #   # for(con in cons) {
+  #   #   print(con)
+  #   #   dbDisconnect(con)
+  #   # }
+  #   poolClose(pool)
+  # })
 
   shinyjs::useShinyjs()
   #session$allowReconnect(TRUE)
