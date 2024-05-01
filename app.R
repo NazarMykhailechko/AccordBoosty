@@ -15,13 +15,22 @@
 # ))
 # databaseName <- "crmsystem"
 
-options(mysql = list(
-  "host" = "eu-cluster-west-01.k8s.cleardb.net",
-  "port" = 3306,
-  "user" = "bc6a3dad916b4a",
-  "password" = "0c7f407f"
-))
-databaseName <- "heroku_623d565686a87a4"
+# options(mysql = list(
+#   "host" = "eu-cluster-west-01.k8s.cleardb.net",
+#   "port" = 3306,
+#   "user" = "bc6a3dad916b4a",
+#   "password" = "0c7f407f"
+# ))
+# databaseName <- "heroku_623d565686a87a4"
+
+pool <- dbPool(
+  drv = RMySQL::MySQL(),
+  dbname = "heroku_623d565686a87a4",
+  host = "eu-cluster-west-01.k8s.cleardb.net",
+  username = "bc6a3dad916b4a",
+  password = "0c7f407f"
+)
+
 
 #table <- "clients"
 
@@ -154,11 +163,14 @@ get_credencials <- function() {
     #data <- RODBC::sqlQuery(con, "SELECT * FROM mycredentials")
     #on.exit(RODBC::odbcClose(con))
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
-    data <- DBI::dbGetQuery(con,   "SELECT * FROM mycredentials")
-    on.exit(DBI::dbDisconnect(con))
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
+    # data <- DBI::dbGetQuery(con,   "SELECT * FROM mycredentials")
+    # on.exit(DBI::dbDisconnect(con))
+    
+    data <- DBI::dbGetQuery(pool,   "SELECT * FROM mycredentials")
+    #poolClose(pool)
 
    return(data)
 }
@@ -196,6 +208,7 @@ library(data.table)
 #library(odbc)
 library(RMySQL)
 library(DBI)
+library(pool)
 library(DT)
 library(reactable)
 library(htmltools)
@@ -676,12 +689,14 @@ server <- function(input, output, session) {
   
   session$onSessionEnded(function(){
     print("CLEAR CONNECTIONS!!!!!!!!!!!!!!!!!!!!!!!")
-    cons<-dbListConnections(RMySQL::MySQL()) 
-    for(con in cons) {
-      dbDisconnect(con)
-      }
+    # cons<-dbListConnections(RMySQL::MySQL())
+    # for(con in cons) {
+    #   print(con)
+    #   dbDisconnect(con)
+    # }
+    poolClose(pool)
   })
-  
+
   shinyjs::useShinyjs()
   #session$allowReconnect(TRUE)
   
@@ -918,13 +933,13 @@ where login = '"
      
      #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "'"))
      
-     con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+     # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+     #                 port = options()$mysql$port, user = options()$mysql$user,
+     #                 password = options()$mysql$password)
      
      
      
-     data <- DBI::dbGetQuery(con,  paste0(ssql,input$managers, "'order by pr LIMIT 1000"))
+     data <- DBI::dbGetQuery(pool,  paste0(ssql,input$managers, "'order by pr LIMIT 1000"))
      
 
      #mutate(data, pr = sprintf("%008d", pr)) -> data
@@ -932,7 +947,9 @@ where login = '"
      
      #data <- sqlQuery(con, paste0(ssql,isTruthy(auth$user), "'"))
      #on.exit(RODBC::odbcClose(con))
-     on.exit(DBI::dbDisconnect(con))
+     
+     #on.exit(DBI::dbDisconnect(con))
+     #poolClose(pool)
 
 
      # on click function
@@ -1138,13 +1155,14 @@ where login = '"
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
     #dataf <- RODBC::sqlQuery(con, paste0(ssql,input$okpo,"'"))
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    dataf <- DBI::dbGetQuery(con,  paste0(ssql,input$okpo,"'"))
-    on.exit(DBI::dbDisconnect(con))
-
+    dataf <- DBI::dbGetQuery(pool,  paste0(ssql,input$okpo,"'"))
+    #on.exit(DBI::dbDisconnect(con))
+    #poolClose(pool)
+    
     #mutate(dataf, TIN = sprintf("%008d", TIN)) -> dataf
     #on.exit(RODBC::odbcClose(con))
     
@@ -2274,15 +2292,15 @@ END AS cl
     
     #on.exit(RODBC::odbcClose(con))
     
+     
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
-    
-    data <- DBI::dbGetQuery(con,  paste0(ssql,input$managers, "' and pr='", input$edit,"'"))
+    data <- DBI::dbGetQuery(pool,  paste0(ssql,input$managers, "' and pr='", input$edit,"'"))
 
     
-    on.exit(DBI::dbDisconnect(con))
+    #on.exit(DBI::dbDisconnect(con))
     
     hold <- data
     
@@ -2456,11 +2474,11 @@ END AS cl
     #data <- sqlQuery(con,paste0(ssql,input$edit))
     #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "' and pr=", input$edit))
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    data <- DBI::dbGetQuery(con,  paste0(ssql,input$managers, "' and pr='", input$edit,"'"))
+    data <- DBI::dbGetQuery(pool,  paste0(ssql,input$managers, "' and pr='", input$edit,"'"))
     
     
     #mutate(data, pr = sprintf("%008d", pr)) -> data
@@ -2527,14 +2545,14 @@ END AS cl
     
     if(input$status == "запланована зустріч" | input$status == "запланований повторний дзвінок"){
       #data1 <- RODBC::sqlQuery(con,paste0(ssql1,"'", input$status, "', last_client_result = date_format (cast('", input$work,"' as Date), '%d.%m.%Y'), client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
-      data1 <- dbSendQuery(
-        con,
+      data1 <- DBI::dbGetQuery(
+        pool,
         paste0(ssql1,"'", input$status, "', last_client_result = date_format (cast('", input$work,"' as Date), '%d.%m.%Y'), client_history = '", client_history ,"' where login = '", input$managers ,"' and pr='",input$edit, "'")
       )
     }else{
       #data1 <- RODBC::sqlQuery(con,paste0(ssql1,"'", input$status, "', last_client_result = '", input$work,"', client_history = '", client_history ,"' where login = '", input$managers ,"' and pr=",input$edit))
-      data1 <- dbSendQuery(
-        con,
+      data1 <- DBI::dbGetQuery(
+        pool,
         paste0(ssql1,"'", input$status, "', last_client_result = '", input$work,"', client_history = '", client_history ,"' where login = '", input$managers ,"' and pr='",input$edit,"'")
       )
     }
@@ -2641,11 +2659,11 @@ END AS cl
                                                    VALUES ('%s', '%s', '%s')", input$managers, input$status, Sys.time())
     #data2 <- RODBC::sqlQuery(con, ssql)
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    data2 <- DBI::dbSendQuery(con, ssql)
+    data2 <- DBI::dbGetQuery(pool, ssql)
 
   
  #    ssql <- "SELECT top 1000 pr
@@ -2718,7 +2736,7 @@ where login = '"
     #data <- RODBC::sqlQuery(con, paste0(ssql,input$managers, "' LIMIT 1000"))
     
     
-    data <- dbGetQuery(con,  paste0(ssql,input$managers, "' order by pr LIMIT 1000"))
+    data <- DBI::dbGetQuery(pool,  paste0(ssql,input$managers, "' order by pr LIMIT 1000"))
     
 
     
@@ -2766,7 +2784,10 @@ where login = '"
     #})
 
     #on.exit(RODBC::odbcClose(con))
-    on.exit(dbDisconnect(con))
+    
+    #on.exit(dbDisconnect(con))
+    #poolClose(pool)
+    
     removeModal()
 
 
@@ -2968,11 +2989,11 @@ order by id", okpo)
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
     #data <- RODBC::sqlQuery(con,ssql)
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
 
-    data <- DBI::dbGetQuery(con,ssql)
+    data <- DBI::dbGetQuery(pool,ssql)
     #on.exit(dbDisconnect(con))
     
     balance <- data
@@ -3070,7 +3091,7 @@ order by id", okpo)
     
     
     #data <- RODBC::sqlQuery(con,ssql)
-    data <- dbGetQuery(con,ssql)
+    data <- DBI::dbGetQuery(pool,ssql)
 
     finrez <- data
     
@@ -3179,8 +3200,9 @@ order by id", okpo)
     
     #print(data)
     #on.exit(RODBC::odbcClose(con))
-    on.exit(dbDisconnect(con))
     
+    #on.exit(dbDisconnect(con))
+    #poolClose(pool)
     
     output$company <- renderText({
       client$name
@@ -3239,11 +3261,11 @@ order by id", okpo)
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
     #dataforcompanyname <- RODBC::sqlQuery(con, paste0(ssql, okpo,"'"))
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    dataforcompanyname <- DBI::dbGetQuery(con, paste0(ssql, okpo,"'"))
+    dataforcompanyname <- DBI::dbGetQuery(pool, paste0(ssql, okpo,"'"))
     #on.exit(dbDisconnect(con))
 
     company$name <- dataforcompanyname$FIRM_NAME
@@ -3300,11 +3322,11 @@ order by id", okpo)
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
     #data <- RODBC::sqlQuery(con,ssql)
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    data <- DBI::dbGetQuery(con, ssql)
+    data <- DBI::dbGetQuery(pool, ssql)
     #on.exit(dbDisconnect(con))
     
     balance <- data
@@ -3404,7 +3426,7 @@ order by id", okpo)
    # data <- RODBC::sqlQuery(con,ssql)
     
     
-    data <- dbGetQuery(con, ssql)
+    data <- DBI::dbGetQuery(pool, ssql)
     #on.exit(dbDisconnect(con))
     
     finrez <- data
@@ -3513,8 +3535,9 @@ order by id", okpo)
     
     #print(data)
     #on.exit(RODBC::odbcClose(con))
-    on.exit(dbDisconnect(con))
     
+    #on.exit(dbDisconnect(con))
+    #poolClose(pool)
     
     output$company3 <- renderText({
       company$name
@@ -3559,13 +3582,13 @@ GROUP BY login ) AS QQ"
     #data_status_results <- RODBC::sqlQuery(con, ssql)
     
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    data_status_results <- DBI::dbGetQuery(con, ssql)
-    on.exit(DBI::dbDisconnect(con))
-    
+    data_status_results <- DBI::dbGetQuery(pool, ssql)
+    #on.exit(DBI::dbDisconnect(con))
+    #poolClose(pool)
     #on.exit(RODBC::odbcClose(con))
     
     
@@ -3635,12 +3658,13 @@ GROUP BY login ) AS QQ"
     #con <- RODBC::odbcDriverConnect('driver={SQL Server};Server=tcp:ne-az-sql-serv1.database.windows.net;database=daqk9mfw8cyjjxu;uid=upe7l0su0vij18r;pwd=wQxX6Z85n0DJx*Y#i5QFYS4lD;')
     #data_status_results_hits <- RODBC::sqlQuery(con, ssql)
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    data_status_results_hits <- DBI::dbGetQuery(con, ssql)
-    on.exit(DBI::dbDisconnect(con))
+    data_status_results_hits <- DBI::dbGetQuery(pool, ssql)
+    #on.exit(DBI::dbDisconnect(con))
+    #poolClose(pool)
     
     #on.exit(RODBC::odbcClose(con))
     
@@ -4207,13 +4231,13 @@ client, `group`
     #data_income_results <- RODBC::sqlQuery(con, ssql)
     #on.exit(RODBC::odbcClose(con))
     
-    con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
-                     port = options()$mysql$port, user = options()$mysql$user,
-                     password = options()$mysql$password)
+    # con <- DBI::dbConnect(RMySQL::MySQL(), dbname = databaseName, host = options()$mysql$host,
+    #                  port = options()$mysql$port, user = options()$mysql$user,
+    #                  password = options()$mysql$password)
     
-    data_income_results <- DBI::dbGetQuery(con, ssql)
-    on.exit(DBI::dbDisconnect(con))
-  
+    data_income_results <- DBI::dbGetQuery(pool, ssql)
+    #on.exit(DBI::dbDisconnect(con))
+    #poolClose(pool)
     
     return(data_income_results)
   })
