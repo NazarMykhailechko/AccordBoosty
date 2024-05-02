@@ -31,6 +31,12 @@ pool <- pool::dbPool(
   password = "0c7f407f"
 )
 
+onStop(function() {
+  print("POOL CLOSED!!!!!!!!!!!!!")
+  poolClose(pool)
+})
+
+
 
 #table <- "clients"
 
